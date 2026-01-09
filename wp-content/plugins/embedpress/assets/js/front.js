@@ -89,8 +89,6 @@ let epGlobals = {};
         });
     }
 
-
-
     // Run on initial load.
     embedPressResponsiveEmbeds();
 
@@ -206,10 +204,12 @@ let epGlobals = {};
             var embed = "https://www.youtube.com/embed/";
             var vid = this.getAttribute("data-vid");
             var iframe = playerWrap.getElementsByTagName("iframe");
+
+            console.log
+            
             if (vid) {
                 if (iframe) {
-                    var vidSrc = iframe[0].src.replace(/(.*\/embed\/)([^\?&"'>]+)(.+)?/, `\$1${vid}\$3`);
-                    console.log(vidSrc);
+                    var vidSrc = iframe[0]?.src.replace(/(.*\/embed\/)([^\?&"'>]+)(.+)?/, `\$1${vid}\$3`);
                     if (vidSrc.indexOf('autoplay') > 0) {
                         vidSrc = vidSrc.replace('autoplay=0', 'autoplay=1');
                     }
@@ -278,7 +278,7 @@ let epGlobals = {};
 
             let x = 1;
 
-            sendRequest("/wp-admin/admin-ajax.php", formBody, function (request) {
+            sendRequest(embedpressFrontendData.ajaxurl, formBody, function (request) {
                 if (galleryWrapper && galleryWrapper[0] && request.responseText) {
                     var response = JSON.parse(request.responseText);
                     galleryWrapper[0].outerHTML = response.html;
@@ -371,10 +371,9 @@ let epGlobals = {};
 
         jQuery('#' + perentSel + '-' + ep_client_id + ' .password-form input[type="submit"]').val(unlokingText);
 
-        jQuery.post(eplocalize.ajaxurl, data, function (response) {
+        jQuery.post(embedpressFrontendData.ajaxurl, data, function (response) {
             if (response.success) {
                 if (!response.embedHtml) {
-
                     jQuery('#' + perentSel + '-' + ep_client_id + ' .password-form input[type="submit"]').val(buttonText);
                     jQuery('#' + perentSel + '-' + ep_client_id + ' .password-form input[type="password"]').val('');
                     jQuery(that).closest('.password-form-container').find('.error-message').removeClass('hidden');
@@ -391,13 +390,16 @@ let epGlobals = {};
                     }
 
                     // Custom player initialization when content protection enabled
-                    document.querySelector('#' + perentSel + '-' + ep_client_id + ' .ep-embed-content-wraper').classList.remove('plyr-initialized');
+                    document.querySelector('#' + perentSel + '-' + ep_client_id + ' .ep-embed-content-wraper')?.classList?.remove('plyr-initialized');
 
-                    initPlayer(document.querySelector('#' + perentSel + '-' + ep_client_id + ' .ep-embed-content-wraper'));
-
-                    if (eplocalize.is_pro_plugin_active) {
+                    if (typeof initPlayer === 'function') {
+                        initPlayer(document.querySelector('#' + perentSel + '-' + ep_client_id + ' .ep-embed-content-wraper'));
+                    }
+                    if (embedpressFrontendData.isProPluginActive) {
                         const adIdEl = document.querySelector('#' + perentSel + '-' + ep_client_id + ' [data-sponsored-id]');
-                        adInitialization(adIdEl, adIdEl?.getAttribute('data-ad-index'));
+                        if (typeof adInitialization === 'function') {
+                            adInitialization(adIdEl, adIdEl?.getAttribute('data-ad-index'));
+                        }
                     }
 
                 }
@@ -412,6 +414,11 @@ let epGlobals = {};
     jQuery('.ep-gutenberg-content .password-form').submit(function (e) {
         e.preventDefault(); // Prevent the default form submission
         unlockSubmitHander('ep-gutenberg-content', this);
+    });
+
+    jQuery('.ep-shortcode-content .password-form').submit(function (e) {
+        e.preventDefault(); // Prevent the default form submission
+        unlockSubmitHander('ep-shortcode-content', this);
     });
 
     window.addEventListener('load', function (e) {
@@ -506,7 +513,7 @@ let epGlobals = {};
 
         let likeComments = '';
 
-        if (eplocalize.is_pro_plugin_active && accountType === 'business') {
+        if (embedpressFrontendData.isProPluginActive) {
             if (instaPostData.show_likes_count == 'true') {
                 likeComments += `
                     <div class="embedpress-inline popup-like-button"><a target="_blank" href="${instaPostData.permalink}">${likeIcon} ${instaPostData.like_count || 0}</a></div> 
@@ -529,7 +536,6 @@ let epGlobals = {};
                 <a target="_new" href="${srcUrl}" type="button" class="btn btn-primary">${instaPostData.popup_follow_button_text}</a>
             </div>`;
         }
-        console.log(instaPostData);
 
         let popupHtml = '';
         popupHtml += `
@@ -737,14 +743,14 @@ let epGlobals = {};
                 'connected_account_type': connectedAccount,
                 'loadmore_key': loadmoreKey,
                 'params': params,
-                '_nonce': eplocalize.nonce
+                '_nonce': embedpressFrontendData.nonce
             };
 
             if (feedType === 'hashtag_type') {
                 data.hashtag_id = hashtagId;
             }
 
-            jQuery.post(eplocalize.ajaxurl, data, function (response) {
+            jQuery.post(embedpressFrontendData.ajaxurl, data, function (response) {
                 if (response.total_feed_posts >= response.next_post_index) {
                     var $responseHtml = $(response.html);
 
@@ -824,11 +830,14 @@ document.addEventListener('DOMContentLoaded', function () {
             autoplaySpeed: options.autoplayspeed,
             arrows: options.arrows,
             breakpoints: {
+                0: {
+                    slidesPerView: 1
+                },
                 768: {
-                    slidesPerView: parseInt(options.slideshow) - 1
+                    slidesPerView: Math.max(1, parseInt(options.slideshow, 10) - 1)
                 },
                 1024: {
-                    slidesPerView: parseInt(options.slideshow)
+                    slidesPerView: Math.max(1, parseInt(options.slideshow, 10))
                 }
             }
         };
@@ -904,23 +913,23 @@ document.addEventListener('DOMContentLoaded', function () {
         });
     }
 
-    console.log(youtubeCarouselWraper);
-
-
-
 
 
 });
 
 document.addEventListener('DOMContentLoaded', () => {
     const carousel = document.querySelector('.youtube-carousel');
+
+    if (!carousel) {
+        return;
+    }
+
     const items = document.querySelectorAll('.item');
     const prevButton = document.querySelector('.preview');
     const nextButton = document.querySelector('.next');
 
     let itemsToShow = getItemsToShow(); // Determine items to show based on screen width
 
-    console.log(itemsToShow);
     const totalItems = items.length;
     let currentIndex = 0;
 
@@ -1011,11 +1020,11 @@ jQuery(window).on("elementor/frontend/init", function () {
 
             const spinicon = '<svg width="18" height="18" fill="#fff" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><style>.spinner_GuJz{transform-origin:center;animation:spinner_STY6 1.5s linear infinite}@keyframes spinner_STY6{100%{transform:rotate(360deg)}}</style><g class="spinner_GuJz"><circle cx="3" cy="12" r="2"/><circle cx="21" cy="12" r="2"/><circle cx="12" cy="21" r="2"/><circle cx="12" cy="3" r="2"/><circle cx="5.64" cy="5.64" r="2"/><circle cx="18.36" cy="18.36" r="2"/><circle cx="5.64" cy="18.36" r="2"/><circle cx="18.36" cy="5.64" r="2"/></g></svg>';
 
-            $('.elementor-widget-container .ep-nft-gallery-wrapper').each(function () {
-                let selctorEl = `.elementor-widget-container [data-nftid='${$(this).data('nftid')}']`;
+            $('.elementor-widget-embedpres_elementor .ep-nft-gallery-wrapper').each(function () {
+                let selctorEl = `.elementor-widget-embedpres_elementor [data-nftid='${$(this).data('nftid')}']`;
                 let loadmorelabel = $(selctorEl).data('loadmorelabel');
                 $(selctorEl + ` .ep_nft_item`).slice(0, $(selctorEl).data('itemparpage')).show();
-                $('.elementor-widget-container .ep-nft-gallery-wrapper .ep-loadmore-wrapper button').css('display', 'flex');
+                $('.elementor-widget-embedpres_elementor .ep-nft-gallery-wrapper .ep-loadmore-wrapper button').css('display', 'flex');
 
                 $(selctorEl + " .nft-loadmore").click(function (e) {
                     //change the text of the button
@@ -1038,7 +1047,7 @@ jQuery(window).on("elementor/frontend/init", function () {
             });
         };
 
-        if ($('.elementor-widget-container .ep-nft-gallery-wrapper').length > 0) {
+        if ($('.elementor-widget-embedpres_elementor .ep-nft-gallery-wrapper').length > 0) {
             epElLoadMore();
         }
 
@@ -1059,7 +1068,7 @@ jQuery(window).on("elementor/frontend/init", function () {
 
             jQuery('#' + perentSel + '-' + ep_client_id + ' .password-form input[type="submit"]').val(unlokingText);
 
-            jQuery.post(eplocalize.ajaxurl, data, function (response) {
+            jQuery.post(embedpressFrontendData.ajaxurl, data, function (response) {
                 if (response.success) {
                     if (!response.embedHtml) {
                         jQuery('#' + perentSel + '-' + ep_client_id + ' .password-form input[type="submit"]').val(buttonText);
@@ -1079,7 +1088,7 @@ jQuery(window).on("elementor/frontend/init", function () {
                             epGlobals.youtubeChannelGallery();
                         }
 
-                        if ($('.elementor-widget-container .ep-nft-gallery-wrapper').length > 0) {
+                        if ($('.elementor-widget-embedpres_elementor .ep-nft-gallery-wrapper').length > 0) {
                             epElLoadMore();
                         }
                     }
@@ -1097,10 +1106,12 @@ jQuery(window).on("elementor/frontend/init", function () {
         });
 
 
-        const instaWrappers = document.querySelectorAll('.ep-embed-content-wraper');
+        const instaWrappers = document.querySelectorAll('.ep-embed-content-wrapper');
 
         if (instaWrappers.length > 0) {
+
             instaWrappers.forEach((wrapper) => {
+                wrapper.classList.add('class-content-wrapper');
                 const carouselId = wrapper.getAttribute('data-carouselid');
 
                 if (!carouselId) return;
@@ -1110,6 +1121,7 @@ jQuery(window).on("elementor/frontend/init", function () {
                 options = JSON.parse(options);
                 const carouselSelector = `[data-carouselid="${carouselId}"] .embedpress-insta-container`;
 
+
                 if (options.arrows) {
                     document.querySelector(`[data-carouselid="${carouselId}"] .cg-carousel__btns`).classList.remove('hidden');
                 }
@@ -1118,6 +1130,7 @@ jQuery(window).on("elementor/frontend/init", function () {
 
             });
         }
+
 
         const instaFeed = document.querySelector(`${selectorEl} .ose-instagram-feed`);
         const instaGallery = document.querySelector(`${selectorEl} .insta-gallery`);
@@ -1135,7 +1148,7 @@ jQuery(window).on("elementor/frontend/init", function () {
 
         }
 
-        if ($('.elementor-widget-container .ose-instagram-feed').length > 0) {
+        if ($('.elementor-widget-embedpres_elementor .ose-instagram-feed').length > 0) {
             epGlobals.instaLoadMore();
         }
 
@@ -1147,8 +1160,10 @@ jQuery(window).on("elementor/frontend/init", function () {
         let classJoint = '.' + classes.split(' ').join('.');
         const selectorEl = document.querySelector(classJoint + ' [data-sponsored-id]');
 
-        if (jQuery('body').hasClass('elementor-editor-active') && eplocalize.is_pro_plugin_active) {
-            adInitialization(selectorEl, window.epAdIndex);
+        if (jQuery('body').hasClass('elementor-editor-active') && embedpressFrontendData.isProPluginActive) {
+            if (typeof adInitialization === 'function') {
+                adInitialization(selectorEl, window.epAdIndex);
+            }
         }
 
     }
@@ -1190,88 +1205,6 @@ if (isIOSDevice()) {
 document.addEventListener("DOMContentLoaded", epGlobals.handlePosterImageLoad);
 
 
-
-// document.addEventListener('DOMContentLoaded', function () {
-//     const videoPopup = document.getElementById('videoPopup');
-//     const videoIframe = document.getElementById('videoIframe');
-//     const videoDescription = document.getElementById('videoDescription');
-//     const closeBtn = document.querySelector('.close');
-//     const nextBtn = document.getElementById('nextVideo');
-//     const prevBtn = document.getElementById('prevVideo');
-
-//     let currentIndex = -1;
-
-//     function openVideoPopup(index) {
-//         const items = document.querySelectorAll('.layout-grid .item, .layout-list .item, .layout-carousel .item');
-//         if (index >= 0 && index < items.length) {
-//             currentIndex = index;
-//             const videoId = items[currentIndex].getAttribute('data-vid');
-//             const description = items[currentIndex].querySelector('.video-description').innerHTML;
-
-//             if (videoId) {
-//                 videoIframe.src = `https://www.youtube.com/embed/${videoId}?autoplay=1`;
-//                 videoDescription.innerHTML = description;
-//                 videoPopup.style.display = 'block';
-
-//                 // Update navigation buttons visibility
-//                 updateNavigationButtons();
-//             }
-//         }
-//     }
-
-//     function closeVideoPopup() {
-//         videoPopup.style.display = 'none';
-//         videoIframe.src = '';
-//         videoDescription.innerHTML = '';
-//     }
-
-//     function updateNavigationButtons() {
-//         const items = document.querySelectorAll('.layout-grid .item, .layout-list .item, .layout-carousel .item');
-//         if (currentIndex <= 0) {
-//             prevBtn.style.display = 'none';
-//         } else {
-//             prevBtn.style.display = 'block';
-//         }
-
-//         if (currentIndex >= items.length - 1) {
-//             nextBtn.style.display = 'none';
-//         } else {
-//             nextBtn.style.display = 'block';
-//         }
-//     }
-
-//     document.addEventListener('click', function (event) {
-//         const items = document.querySelectorAll('.layout-grid .item, .layout-list .item, .layout-carousel .item');
-//         const item = event.target.closest('.layout-grid .item, .layout-list .item, .layout-carousel .item');
-//         if (item) {
-//             const index = Array.prototype.indexOf.call(items, item);
-//             openVideoPopup(index);
-//         }
-//     });
-
-//     closeBtn.addEventListener('click', closeVideoPopup);
-
-//     window.addEventListener('click', function (event) {
-//         if (event.target === videoPopup) {
-//             closeVideoPopup();
-//         }
-//     });
-
-//     nextBtn.addEventListener('click', function () {
-//         const items = document.querySelectorAll('.layout-grid .item, .layout-list .item, .layout-carousel .item');
-//         if (currentIndex >= 0 && currentIndex < items.length - 1) {
-//             openVideoPopup(currentIndex + 1);
-//         }
-//     });
-
-//     prevBtn.addEventListener('click', function () {
-//         if (currentIndex > 0) {
-//             openVideoPopup(currentIndex - 1);
-//         }
-//     });
-// });
-
-
 jQuery(document).ready(function ($) {
 
     let currentIndex = -1;
@@ -1297,6 +1230,9 @@ jQuery(document).ready(function ($) {
     function openVideoPopup(index) {
         const items = $('.layout-grid .item, .layout-list .item, .layout-carousel .item');
         if (index >= 0 && index < items.length) {
+            // Remove any existing video popup before creating a new one
+            $('#videoPopup').remove();
+
             currentIndex = index;
             const videoId = $(items[currentIndex]).data('vid');
             const videoPopup = createVideoPopup();
@@ -1336,6 +1272,7 @@ jQuery(document).ready(function ($) {
         }
     }
 
+
     function closeVideoPopup(videoPopup) {
         videoPopup.remove();
         currentIndex = -1; // Reset the index
@@ -1350,9 +1287,9 @@ jQuery(document).ready(function ($) {
         const data = {
             action: 'fetch_video_description',
             vid: videoId
-        };
+        }; 
 
-        $.post(eplocalize.ajaxurl, data, function (response) {
+        $.post(embedpressFrontendData.ajaxurl, data, function (response) {
             if (response.success) {
                 videoIframe.attr('src', `https://www.youtube.com/embed/${videoId}?autoplay=1`);
                 videoDescriptionContainer.html(response.data.description);
@@ -1366,6 +1303,190 @@ jQuery(document).ready(function ($) {
         const items = $('.layout-grid .item, .layout-list .item, .layout-carousel .item');
         const index = items.index(this);
         openVideoPopup(index);
+    });
+});
+jQuery(document).ready(function ($) {
+    let currentIndex = 0;
+    const $photos = $('.photo-item');
+
+    function createPopupGooglePhotos() {
+        if ($('#ep-popup-overlay').length === 0) {
+            const photoPopup = `
+            <div class="popup-overlay" id="ep-popup-overlay" style="display: none!important">
+               
+                <div class="popup">
+                    <span class="close-btn" id="close-btn">
+                        <svg width="20" height="20" viewBox="0 0 0.6 0.6" fill="none" xmlns="http://www.w3.org/2000/svg"><path d="M.132.132a.025.025 0 0 1 .035 0L.3.265.432.133a.025.025 0 1 1 .035.035L.335.3l.132.132a.025.025 0 0 1-.035.035L.3.335.168.467A.025.025 0 0 1 .133.432L.265.3.132.168a.025.025 0 0 1 0-.035" fill="#fff"/></svg>
+                    </span>
+                    <button class="prev-btn" id="prev-btn">
+                        <svg width="20" height="20" viewBox="0 0 0.6 0.6" data-name="Flat Color" xmlns="http://www.w3.org/2000/svg" class="icon flat-color"><path d="M.525.275h-.39L.268.143A.025.025 0 1 0 .233.108L.058.283a.025.025 0 0 0 0 .035l.175.175a.025.025 0 0 0 .035 0 .025.025 0 0 0 0-.035L.135.325h.39a.025.025 0 0 0 0-.05" style="fill:#fff"/></svg>
+                    </button>
+                    <div id="popup-content" class="loading">
+                        <div class="photo-loader"></div>
+                        <img id="popup-image" src="" style="display:none;" loading="lazy" />
+                    </div>
+                    <button class="next-btn" id="next-btn">
+                        <svg width="20" height="20" viewBox="0 0 0.6 0.6" data-name="Flat Color" xmlns="http://www.w3.org/2000/svg" class="icon flat-color"><path d="M.543.282.368.107a.025.025 0 0 0-.035.035l.133.132H.075a.025.025 0 0 0 0 .05h.39L.332.456a.025.025 0 0 0 0 .035.025.025 0 0 0 .035 0L.542.316a.025.025 0 0 0 0-.035" style="fill:#fff"/></svg>
+                    </button>
+                </div>
+            </div>`;
+            $('body').append(photoPopup);
+
+            // Loader spinner CSS (can be moved to your CSS file)
+            const spinnerStyles = `
+            <style>
+                .popup #popup-content .photo-loader {
+                    display: none;
+                }
+                .popup #popup-content.loading .photo-loader {
+                    width: 40px;
+                    height: 40px;
+                    border: 4px solid #fff;
+                    border-top: 4px solid transparent;
+                    border-radius: 50%;
+                    animation: spin 1s linear infinite;
+                    margin: 40px auto;
+                    display: block;
+                }
+                @keyframes spin {
+                    0% { transform: rotate(0deg); }
+                    100% { transform: rotate(360deg); }
+                }
+            </style>`;
+            $('head').append(spinnerStyles);
+
+            // Events
+            $('#ep-popup-overlay').on('click', function (e) {
+                if ($(e.target).is('#ep-popup-overlay') || $(e.target).is('.popup')) {
+                    $('#ep-popup-overlay').hide();
+                }
+            });
+
+            $('#close-btn').on('click', function () {
+                $('#ep-popup-overlay').hide();
+            });
+
+            $('#prev-btn').on('click', function () {
+                currentIndex = (currentIndex - 1 + $photos.length) % $photos.length;
+                updatePopupImage();
+            });
+
+            $('#next-btn').on('click', function () {
+                currentIndex = (currentIndex + 1) % $photos.length;
+                updatePopupImage();
+            });
+        }
+    }
+
+    function updatePopupImage() {
+        const imgSrc = $photos.eq(currentIndex).find('img').attr('data-photo-src');
+        const $popupImage = $('#popup-image');
+        const $popupContent = $('#popup-content');
+
+        $popupContent.addClass('loading');
+        $popupImage.hide();
+
+        const preload = new Image();
+        preload.src = imgSrc;
+
+        preload.onload = function () {
+            $popupImage.attr('src', imgSrc);
+            $popupContent.removeClass('loading');
+            $popupImage.fadeIn();
+        };
+    }
+
+    $('.photo-item').on('click', function () {
+        currentIndex = $photos.index(this);
+        createPopupGooglePhotos();
+        updatePopupImage();
+        $('#ep-popup-overlay').show();
+    });
+});
+
+
+// pause audio/video
+
+jQuery(document).ready(function () {
+    const players = jQuery('.enabled-auto-pause audio, .enabled-auto-pause video');
+
+    function pauseAllExcept(currentPlayer) {
+        players.each(function () {
+            if (this !== currentPlayer[0]) {
+                this.pause();
+            }
+        });
+    }
+
+    players.on('play', function () {
+        pauseAllExcept(jQuery(this));
+    });
+});
+
+// Meetup Events Load More
+jQuery(document).on('click', '.ep-load-more-button', function(e) {
+    e.preventDefault();
+
+    const button = jQuery(this);
+    const container = button.closest('.embedpress-meetup-events');
+    const eventsContainer = container.find('.embedpress-meetup-events-list');
+
+    // Get data attributes
+    const embedId = button.data('embed-id');
+    const currentPage = parseInt(container.data('page')) || 1;
+    const perPage = parseInt(container.data('per-page')) || 10;
+    const nextPage = currentPage + 1;
+
+    // Show loading state
+    const loadingText = button.find('.ep-load-more-text');
+    const spinner = button.find('.ep-load-more-spinner');
+    loadingText.hide();
+    spinner.show();
+    button.prop('disabled', true);
+
+    // Make AJAX request
+    jQuery.ajax({
+        url: embedpressFrontendData.ajaxurl,
+        type: 'POST',
+        data: {
+            action: 'embedpress_meetup_load_more',
+            nonce: embedpressFrontendData.nonce,
+            embed_id: embedId,
+            page: nextPage,
+            per_page: perPage
+        },
+        success: function(response) {
+            if (response.success) {
+                // Append new events
+                eventsContainer.append(response.data.html);
+
+                // Update page number
+                container.data('page', nextPage);
+
+                // Trigger custom event for timezone conversion
+                document.dispatchEvent(new Event('embedpress:meetup:loaded'));
+
+                // Hide button if no more events
+                if (!response.data.has_more) {
+                    button.closest('.ep-events-load-more').fadeOut();
+                } else {
+                    loadingText.show();
+                    spinner.hide();
+                    button.prop('disabled', false);
+                }
+            } else {
+                alert(response.data.message || 'Error loading more events');
+                loadingText.show();
+                spinner.hide();
+                button.prop('disabled', false);
+            }
+        },
+        error: function() {
+            alert('Error loading more events');
+            loadingText.show();
+            spinner.hide();
+            button.prop('disabled', false);
+        }
     });
 });
 
